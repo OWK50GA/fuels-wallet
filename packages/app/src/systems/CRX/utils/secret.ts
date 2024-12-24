@@ -33,7 +33,12 @@ export async function resetTimer() {
 }
 
 export async function saveLockTimeSetting(minutes: number) {
-  await chrome.storage.local.set({ userLockTime: minutes });
+  chrome.storage.session.set({ userLockTime: minutes });
+}
+
+export async function getLockTimeSetting() {
+  const { userLockTime } = await chrome.storage.session.get('userLockTime');
+  return userLockTime;
 }
 
 export async function saveSecret(secret: string, autoLockInMinutes: number) {

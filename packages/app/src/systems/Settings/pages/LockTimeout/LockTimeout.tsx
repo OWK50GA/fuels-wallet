@@ -1,36 +1,65 @@
 import { Box, VStack } from '@fuel-ui/react';
 import dayjs from 'dayjs';
-import { useState } from 'react';
+import { set } from 'ramda';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { saveLockTimeSetting } from '~/systems/CRX/utils';
+import {
+  getLockTimeSetting,
+  getTimer,
+  saveLockTimeSetting,
+} from '~/systems/CRX/utils';
 import { Layout } from '~/systems/Core';
 import { Pages } from '~/systems/Core';
 
-const availableTime = [
-  '5 minutes',
-  '30 minutes',
-  '2 hours',
-  '6 hours',
-  '12 hours',
-  'Never',
-];
+// const availableTime = [
+//   '5 minutes',
+//   '30 minutes',
+//   '2 hours',
+//   '6 hours',
+//   '12 hours',
+//   'Never',
+// ];
+
+const availableTime = [5, 30, 120, 360, 720, Number.MAX_SAFE_INTEGER];
 export function LockTimeout() {
   const navigate = useNavigate();
   const goBack = () => navigate(Pages.wallet());
+
+  const fetchLockTimeSetting = async () => {
+    const lockTime = await getLockTimeSetting();
+    console.log(lockTime);
+    selectTime(lockTime);
+  };
+
+  const selectTime = (time: number) => {
+    setSelectedTime(
+      time === Number.MAX_SAFE_INTEGER ? 'Never' : convertTime(time)
+    );
+  };
+
+  useEffect(() => {
+    fetchLockTimeSetting();
+  }, []);
+
   const [selectedTime, setSelectedTime] = useState<string | undefined>(
-    availableTime[0]
+    undefined
   );
 
-  const handleSelectTime = async (time: string) => {
-    setSelectedTime(time);
-    if (selectedTime === 'Never') {
-      await saveLockTimeSetting(Number.MAX_SAFE_INTEGER);
-    }
+  const convertTime = (time: number): string => {
+    const hours = Math.floor(time / 60);
+    return hours === 0 ? `${time} minutes` : `${hours} hours`;
+  };
+
+  const handleSelectTime = async (time: number) => {
+    selectTime(time);
     if (!selectedTime) return;
     const timeValue = Number.parseInt(selectedTime);
 
     try {
+      // localStorage.setItem('userLockTime', time.toString());
       await saveLockTimeSetting(timeValue);
+
+      console.log(selectedTime);
 
       const { data } = await chrome.storage.session.get('data');
       if (data) {
@@ -49,14 +78,16 @@ export function LockTimeout() {
       <Layout.Content>
         <VStack>
           {availableTime.map((time) => {
+            const display: string =
+              time === Number.MAX_SAFE_INTEGER ? 'Never' : convertTime(time);
             return (
               <Box
                 key={time}
                 style={cssObj.listItem}
                 onClick={() => handleSelectTime(time)}
               >
-                <span>{time}</span>
-                {time === selectedTime && (
+                <span>{display}</span>
+                {display === selectedTime && (
                   <span style={cssObj.checkMark}>✔️</span>
                 )}
               </Box>
